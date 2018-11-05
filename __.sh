@@ -16,6 +16,7 @@
 
 # BOURNE AGAIN STANDARDIZED EXECUTION LIBRARY IMPLEMENTATION for NON-ECMASCRIPT
 
+# GLOBAL DECLARATIONS
 export BASELINE_VERSION='v. 1.0.0'
 export TRUE=1
 export FALSE=0
@@ -26,11 +27,111 @@ function BASELINE {
 }
 alias _=BASELINE
 
+# GLOBAL METHODS
 function BASELINE_TRUE { echo $TRUE; }
 alias _TRUE=BASELINE_TRUE
 
 function BASELINE_FALSE { echo $FALSE; }
 alias _FALSE=BASELINE_FALSE
+
+#!/usr/bin/env bash
+
+function pad_string() {
+	local s_len=${#1};
+	echo "$(printf '%-39s' "$1")"
+}
+function menu_sel {
+    ESC=$( printf "\033")
+    menu_width=80
+    restore_cursor()   { printf "$ESC[?25h"; }
+
+    trap "restore_cursor; stty echo; printf '\n'; exit" 0
+
+    shift_active_row() { printf "$ESC[$1;${2:-1}H"; }
+    calc_active_row()  { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
+    restore_cursor() { printf "$ESC[?25l"; }
+    key_input()        { 
+  												read -s -n3 key 2>/dev/null >&2
+                          if [[ $key = "$ESC[A" ]]; then echo up;    fi;
+                          if [[ $key = "$ESC[B" ]]; then echo down;  fi;
+                          if [[ $key = ""       ]]; then echo enter; fi;
+                        }
+
+    for menu_choice; do printf "\n"; done 																					# Create the menu scaffolding by generating placeholder rows to hold the provided options
+					printf '└──────────────────────────────────────────┘'
+
+    local lastrow=`calc_active_row`																									# Ascertain the real current line's position on-screen...
+    local startrow=$(($lastrow - $#))																								# ...and count backwards to determine line-feeds needed
+    restore_cursor;	  																															# (make sure we give the original line cursor back if Ctrl-C'd)
+
+    local selected=0																																
+    while true; do
+        local menu_index=0
+        for menu_choice; do
+            shift_active_row $(($startrow + $menu_index))														# Iterate the skeleton and seed the rows
+            [ $menu_index -eq $selected ] && 																				
+            printf "│$ESC[7m   $(pad_string $menu_choice)$ESC[27m│" || 
+            printf "│   $(pad_string $menu_choice)│"
+            ((menu_index++))
+        done
+
+        # user key control
+        case `key_input` in
+            enter) break;;																													# On enter... return the index
+            up)    ((selected--));																									# On up... decrement selection (wrapping to last if at 0)
+                   if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi;;
+            down)  ((selected++));																									# On down... opposite of up.
+                   if [ $selected -ge $# ]; then selected=0; fi;;
+        esac
+    done
+
+    shift_active_row $lastrow																												# Move the focus back to the last line (we supplanted)
+    printf "\n"																																			# Newline
+    restore_cursor																																	# Restore original line cursor
+
+    return $selected
+}
+
+function BASELINE_menu {
+		local menu_from_arr=$FALSE
+		local return_index=$FALSE
+		local menu_options=''
+		local menu_selection=-1
+					echo '┌──────────────────────────────────────────┐'
+		while [[ "$menu_selection" == "-1" ]]; do
+			case $1 in
+				-a|--array)
+					menu_from_arr=$TRUE
+					shift ;;
+				-i|--index)
+					return_index=$TRUE
+					shift ;;
+				-p|--prompt)
+					shift 
+					echo "│  $(pad_string "$1") │"
+					echo '├──────────────────────────────────────────┤'
+					shift ;;
+				*)
+					if [[ $menu_from_arr == $TRUE ]]; then 
+						eval "menu_options=(\${$1[*]}) && menu_sel \${$1[*]} 1>&2"
+					else
+						eval "menu_options=($@)"
+						menu_sel "$@" 1>&2
+					fi
+					menu_selection="$?"
+					;;
+			esac
+		done
+    # local result=$?
+    [[ $return_index == $FALSE ]] && echo "${menu_options[$menu_selection]}" || echo "$menu_selection"
+    return $menu_selection
+}
+alias _menu=BASELINE_menu
+
+
+function BASELINE_confirm {
+	echo "Y/N"
+}
 
 function BASELINE_var_isset  { 
 	if [[ -z $1 ]]; then 
@@ -74,8 +175,8 @@ function BASELINE_var_typeof {
 
 alias _typeof=BASELINE_var_typeof  
 
-function BASELINE_str_length { 	tstr="local ssvar=\"$1\"; echo \"\${#ssvar[*]}\""; echo $tstr; }
-alias _length=BASELINE_str_length 
+function BASELINE_length { 	tstr="local ssvar=\"$1\"; echo \"\${#ssvar[*]}\""; echo $tstr; }
+alias _length=BASELINE_length 
 
 function BASELINE_str_ltrim  {	echo -e "${1}" | sed -e 's/^[[:space:]]*//' | xargs echo; }
 alias _ltrim=BASELINE_str_ltrim  
@@ -149,9 +250,12 @@ export BASELINE_HELPFILE='
 	
 	_TRUE/_FALSE
 
+VARIABLE TYPE-AGNOSTIC METHODS
 _isset
 _typeof
 _length
+
+STRING METHODS
 _ltrim
 _rtrim
 _trim
@@ -160,15 +264,24 @@ _substr
 _slice
 _replace
 _split
+
+ARRAY METHODS
 _arr
-_arrlength
 _arrindexof
 _push
 _pop
 _shift
 _unshift
 _concat
+
+SHELL METHODS
+_copy
+_move
+_rename
+_find
+_fuzzyfind
 _go
+_b/_back / _f/_forward / _u/_up
 _show
 _run
 _web
