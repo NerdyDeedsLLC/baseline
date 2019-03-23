@@ -50,7 +50,7 @@ function menu_sel {
     shift_active_row() { printf "$ESC[$1;${2:-1}H"; }
     calc_active_row()  { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
     restore_cursor() { printf "$ESC[?25l"; }
-    key_input()        { 
+    key_input()        {
   												read -s -n3 key 2>/dev/null >&2
                           if [[ $key = "$ESC[A" ]]; then echo up;    fi;
                           if [[ $key = "$ESC[B" ]]; then echo down;  fi;
@@ -64,13 +64,13 @@ function menu_sel {
     local startrow=$(($lastrow - $#))																								# ...and count backwards to determine line-feeds needed
     restore_cursor;	  																															# (make sure we give the original line cursor back if Ctrl-C'd)
 
-    local selected=0																																
+    local selected=0
     while true; do
         local menu_index=0
         for menu_choice; do
             shift_active_row $(($startrow + $menu_index))														# Iterate the skeleton and seed the rows
-            [ $menu_index -eq $selected ] && 																				
-            printf "│$ESC[7m   $(pad_string $menu_choice)$ESC[27m│" || 
+            [ $menu_index -eq $selected ] &&
+            printf "│$ESC[7m   $(pad_string $menu_choice)$ESC[27m│" ||
             printf "│   $(pad_string $menu_choice)│"
             ((menu_index++))
         done
@@ -107,12 +107,12 @@ function BASELINE_menu {
 					return_index=$TRUE
 					shift ;;
 				-p|--prompt)
-					shift 
+					shift
 					echo "│  $(pad_string "$1") │"
 					echo '├──────────────────────────────────────────┤'
 					shift ;;
 				*)
-					if [[ $menu_from_arr == $TRUE ]]; then 
+					if [[ $menu_from_arr == $TRUE ]]; then
 						eval "menu_options=(\${$1[*]}) && menu_sel \${$1[*]} 1>&2"
 					else
 						eval "menu_options=($@)"
@@ -133,8 +133,8 @@ function BASELINE_confirm {
 	echo "Y/N"
 }
 
-function BASELINE_var_isset  { 
-	if [[ -z $1 ]]; then 
+function BASELINE_var_isset  {
+	if [[ -z $1 ]]; then
 		echo $FALSE;
 	else
 		if [[ ! ${!1} && ${!1-unset} ]]; then
@@ -145,7 +145,7 @@ function BASELINE_var_isset  {
 		fi
 	fi
 }
-alias _isset=BASELINE_var_isset  
+alias _isset=BASELINE_var_isset
 
 function BASELINE_var_typeof {
 	local inp=$1
@@ -156,7 +156,7 @@ function BASELINE_var_typeof {
 	[[ "$var" != "" ]] && echo 'undefined' && return 0
 
 	var=$( declare -p $inp)
-	
+
 	local reg='^declare -n [^=]+=\"([^\"]+)\"$'
 	while [[ $var =~ $reg ]]; do
 		var=$( declare -p ${BASH_REMATCH[inp]} 2> /dev/null | grep -q '^declare \-' )
@@ -167,33 +167,33 @@ function BASELINE_var_typeof {
 		A*)	echo "associative-array"	  ;;
 		i*)	echo "int"	  ;;
 		x*)	echo "export"	;;
-		
+
 		-*)	echo "undeclared"	;;
 		 *) echo "string? other?"	;;
 	esac
 }
 
-alias _typeof=BASELINE_var_typeof  
+alias _typeof=BASELINE_var_typeof
 
 function BASELINE_length { 	tstr="local ssvar=\"$1\"; echo \"\${#ssvar[*]}\""; echo $tstr; }
-alias _length=BASELINE_length 
+alias _length=BASELINE_length
 
 function BASELINE_str_ltrim  {	echo -e "${1}" | sed -e 's/^[[:space:]]*//' | xargs echo; }
-alias _ltrim=BASELINE_str_ltrim  
+alias _ltrim=BASELINE_str_ltrim
 
 function BASELINE_str_rtrim  {	echo -e "${1}" | sed -e 's/[[:space:]]*$//' | xargs echo; }
-alias _rtrim=BASELINE_str_rtrim  
+alias _rtrim=BASELINE_str_rtrim
 
 function BASELINE_str_trim   { echo -e $(str_rtrim "$1" | str_ltrim "$1") | xargs echo;	}
-alias _trim=BASELINE_str_trim   
+alias _trim=BASELINE_str_trim
 
 function BASELINE_str_substr { [[ $(var_isset $3) == $TRUE ]] && echo -e ${$1:$2:$3} || echo -e ${$1:$2:$(str_length $1)}; }
-alias _substr=BASELINE_str_substr 
+alias _substr=BASELINE_str_substr
 
 function BASELINE_str_replace { echo "$1" | sed "s/$2/$3/"; }
 alias _replace=BASELINE_str_replace
 
-function BASELINE_str_split  { 
+function BASELINE_str_split  {
 	echo -e "$(readarray -t -d "\\|" a < <(awk "BEGIN { re=\"$2\" } { gsub(re,\"\\\\\"); print; };" <<<"$1"))?" | xargs echo;
 	declare -a a
 };
@@ -222,15 +222,24 @@ alias _shift=BASELINE_arr_shift
 
 function BASELINE_help {
 	case $1 in
-		'') 
-			echo "_BASELINE_ commands and syntax: 
+		'')
+			echo "_BASELINE_ commands and syntax:
 			$BASELINE_HELPFILE" ;;
 		'_TRUE') echo '_BASELINE_ help for _TRUE' ;;
 	esac
 }
 alias _help=BASELINE_help
 
+# declare -a _HELPFILE_INDEX
+
+
 declare -a _HELPFILE
+
+_HELPFILE[_TRUE]='
+Alias(es): BASELINE_TRUE'
+
+_HELPFILE[_FALSE]='
+Alias(es): BASELINE_FALSE'
 
 
 export BASELINE_HELPFILE='
@@ -247,7 +256,7 @@ export BASELINE_HELPFILE='
 					echo "some_variable is undefined"
 
 		See also: _TRUE/_FALSE
-	
+
 	_TRUE/_FALSE
 
 VARIABLE TYPE-AGNOSTIC METHODS
